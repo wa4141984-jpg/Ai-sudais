@@ -10,12 +10,10 @@ import io
 import json
 import os
 import re
+import zipfile
+import xml.etree.ElementTree as ET
 
 import streamlit as st
-from docx import Document
-from google import genai
-from google.genai import types
-from pypdf import PdfReader
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -112,6 +110,13 @@ Rules:
 # Text extraction
 # --------------------------------------------------------------------------- #
 def extract_text_from_pdf(data: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        raise ValueError(
+            "The 'pypdf' package is not installed. Make sure your requirements.txt file "
+            "(exact name, in the repo root) lists pypdf, then reboot the app."
+        )
     reader = PdfReader(io.BytesIO(data))
     if reader.is_encrypted:
         try:
@@ -123,14 +128,24 @@ def extract_text_from_pdf(data: bytes) -> str:
 
 
 def extract_text_from_docx(data: bytes) -> str:
-    doc = Document(io.BytesIO(data))
-    parts = [p.text for p in doc.paragraphs if p.text.strip()]
-    for table in doc.tables:  # many resumes put content in tables
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells if c.text.strip()]
-            if cells:
-                parts.append(" | ".join(cells))
-    return "\n".join(parts)
+    """Read a .docx using only the standard library (a .docx is a zip of XML files)."""
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        root = ET.fromstring(zf.read("word/document.xml"))
+    lines = []
+    for para in root.iter(ns + "p"):  # includes paragraphs inside tables, in document order
+        pieces = []
+        for node in para.iter():
+            if node.tag == ns + "t" and node.text:
+                pieces.append(node.text)
+            elif node.tag == ns + "tab":
+                pieces.append(" ")
+            elif node.tag in (ns + "br", ns + "cr"):
+                pieces.append("\n")
+        line = "".join(pieces).strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def clean_text(text: str) -> str:
@@ -307,6 +322,14 @@ def _is_model_not_found(exc: Exception) -> bool:
 
 
 def analyze_resume(api_key: str, model: str, resume_text: str, job_description: str) -> dict:
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError:
+        raise ValueError(
+            "The 'google-genai' package is not installed. Make sure your requirements.txt file "
+            "(exact name, in the repo root) lists google-genai, then reboot the app."
+        )
     client = genai.Client(api_key=api_key)
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_INSTRUCTION,
