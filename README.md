@@ -1,4 +1,4 @@
-## 📄 ATS Resume Analyzer
+# 📄 ATS Resume Analyzer
 
 A Streamlit app that scores a resume for Applicant Tracking System (ATS) compatibility and gives specific, actionable improvements, powered by Google's Gemini Flash model.
 
@@ -69,6 +69,11 @@ The default is `gemini-3.5-flash`. Change it in the sidebar, or set the `GEMINI_
 └── .gitignore         # keeps secrets out of Git
 ```
 
+## Troubleshooting
+
+- **`ModuleNotFoundError` on Streamlit Cloud:** the dependency file must be named exactly `requirements.txt` (with an **s**, no spaces) and sit in the repo root next to `app.py`. After fixing it, open **Manage app → Reboot app**.
+- **"model not found":** set a current model name in the sidebar (see the Gemini models page above).
+
 ## Limitations
 
 - **Scanned/image-only PDFs** can't be read (and neither can most ATS systems). Use a text-based PDF or DOCX.
@@ -82,4 +87,4 @@ Never commit your API key. `.streamlit/secrets.toml` is listed in `.gitignore`. 
 
 ## License
 
-MIT Ai-sudais
+MIT
